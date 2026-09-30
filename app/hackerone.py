@@ -3,11 +3,14 @@
 문서: https://api.hackerone.com/hacker-resources (GET /hackers/programs 등)
 Basic Auth(username, api_token), read 요청 한도 600/min.
 """
+import logging
+
 import requests
 
 from . import config
 
 BASE = "https://api.hackerone.com/v1"
+logger = logging.getLogger(__name__)
 
 
 class HackerOneClient:
@@ -34,6 +37,7 @@ class HackerOneClient:
                 attrs = item["attributes"]
                 attrs["handle"] = attrs.get("handle") or item.get("id")
                 programs.append(attrs)
+            logger.info("list_programs: page %d, %d개 누적", page, len(programs))
             if len(data) < 100:
                 break
             page += 1

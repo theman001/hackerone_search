@@ -26,13 +26,16 @@ async def startup() -> None:
 
 def _run_discovery() -> tuple[list[dict], str]:
     """블로킹 I/O 모음. run_in_executor로 이벤트루프 밖에서 돌린다."""
+    logger.info("discovery: 시작")
     client = hackerone.HackerOneClient()
     programs = client.list_programs()
     seen = db.get_seen_handles()
     shortlist = scoring.stage1_filter(programs, seen)
+    logger.info("discovery: 전체 %d개 중 1차 필터 통과 %d개, 2차 조회 시작", len(programs), len(shortlist))
 
     scored = []
-    for p in shortlist:
+    for i, p in enumerate(shortlist, 1):
+        logger.info("discovery: 2차 조회 %d/%d (%s)", i, len(shortlist), p["handle"])
         try:
             scopes = client.get_structured_scopes(p["handle"])
             disclosed = client.count_recent_disclosed_reports(p["handle"])
@@ -47,6 +50,7 @@ def _run_discovery() -> tuple[list[dict], str]:
     scored.sort(key=lambda t: t[0], reverse=True)
     top = scored[: config.TOP_N_CANDIDATES]
     candidates = [scoring.format_candidate(p, s, sc) for sc, p, s in top]
+    logger.info("discovery: 완료, 최종 후보 %d개", len(candidates))
 
     if not candidates:
         return [], "조건에 맞는 새 후보 프로그램을 못 찾았습니다. (정책상 자동화 금지 / 이미 추천됨 / scope 부적합 등으로 모두 제외)"
