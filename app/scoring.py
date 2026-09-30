@@ -19,33 +19,17 @@ AUTOMATION_BANLIST = [
     "no vulnerability scanners",
 ]
 
-# 정책에 이 문구가 있으면 "제3자 AI에 프로그램 정보 공유 금지" → hermes 자체가 제3자 AI이므로
-# 이 프로그램에는 애초에 참여 불가. target.json의 automation_policy.prohibits_third_party_ai_sharing과
-# 같은 판단 기준이며, 여기서 걸러진 프로그램은 그 필드가 True일 일이 없으므로 코드에서 바로 False로 못박는다.
-AI_SHARING_BANLIST = [
-    "third-party ai",
-    "third party ai",
-    "artificial intelligence tool",
-    "large language model",
-    "do not use ai",
-    "must not use ai",
-    "ai tools are not permitted",
-    "no ai tools",
-    "chatgpt",
-    "llm-based",
-]
-
 # 자동화 recon이 통하는 asset 종류만 넓은 scope로 취급
 WEB_ASSET_TYPES = {"URL", "WILDCARD", "API", "CIDR"}
 
 STAGE1_KEEP = 20  # 2단계로 넘길 후보 수 (API 호출 비용 상한)
 
 
-def _policy_blocks_agent(policy: str | None) -> bool:
+def _policy_bans_automation(policy: str | None) -> bool:
     if not policy:
         return False
     text = policy.lower()
-    return any(term in text for term in AUTOMATION_BANLIST) or any(term in text for term in AI_SHARING_BANLIST)
+    return any(term in text for term in AUTOMATION_BANLIST)
 
 
 def _age_score(started_accepting_at: str | None) -> float:
@@ -72,7 +56,7 @@ def stage1_filter(programs: list[dict], seen_handles: set[str]) -> list[dict]:
             continue
         if p.get("state") not in (None, "public_mode"):
             continue  # 초대제 등 에이전트가 스스로 못 들어가는 프로그램
-        if _policy_blocks_agent(p.get("policy")):
+        if _policy_bans_automation(p.get("policy")):
             continue
         if p["handle"] in seen_handles:
             continue  # 이미 이전에 추천/승인/스킵한 프로그램

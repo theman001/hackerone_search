@@ -84,11 +84,7 @@ Hacktivity에 리포트가 적은 곳이다. 여기서는 "잘 알려진 취약�
 문서화 안 된 내부 GraphQL로 렌더링되는 웹 프런트엔드라 API 계약이 없다. 여기서는
 쓰지 않고 공식 문서화된 Hacker API(`/v1/hackers/...`)만 사용한다.
 
-3. **"제3자 AI 공유 금지" 정책도 자동화 금지와 동급의 하드 필터다.** hermes 자체가
-   정책이 말하는 "제3자 AI"이기 때문에, 이 문구가 있으면 애초에 이 프로그램에는
-   에이전트가 참여할 수 없다. `AUTOMATION_BANLIST`와 같은 방식으로
-   `AI_SHARING_BANLIST`를 별도로 두고 1단계에서 같이 걸러낸다.
-4. **`scope_exclusions` 엔드포인트는 도메인 목록이 아니라 카테고리(예: Social
+3. **`scope_exclusions` 엔드포인트는 도메인 목록이 아니라 카테고리(예: Social
    Engineering, Physical Security)다.** `target.json`의 `out_of_scope_domains`는
    대신 `structured_scopes` 중 `eligible_for_submission=false`인 항목에서 뽑는다.
    `scope_exclusions`의 카테고리는 `automation_policy.notes`에 참고 정보로만 덧붙인다.

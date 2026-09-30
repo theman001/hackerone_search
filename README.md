@@ -36,14 +36,17 @@ HackerOne Hacker API로 "AI 에이전트(hermes)가 이길 수 있는" 신생/�
 
 ## 배포 (Radxa Rock 5 / OMV, docker compose)
 
+`docker-compose.yml`은 실제 비밀값을 담기 때문에 `.gitignore`에 있고 리포지토리에는
+없다. 대신 [docker-compose_example.yml](docker-compose_example.yml)을 커밋해뒀다.
+
 1. 이 리포지토리를 GitHub에 push하면 `.github/workflows/docker-publish.yml`이
    `ghcr.io/<owner>/<repo>:latest` 로 amd64+arm64 이미지를 빌드해 올린다.
-2. [docker-compose.yml](docker-compose.yml)의 `image:`를 실제 `owner/repo`로,
-   `networks:`를 Mattermost가 붙어있는 기존 네트워크 이름으로 바꾼다
-   (`docker network ls`로 확인).
-3. `.env.example`을 `.env`로 복사해서 값 채우기.
-4. OMV GUI(docker compose 플러그인)에 `docker-compose.yml` + `.env` 그대로
-   붙여넣고 up.
+2. `cp docker-compose_example.yml docker-compose.yml`
+3. `docker-compose.yml`의 `environment:` 아래 값들을 실제 값으로 채우고
+   (`env_file` 방식이 아니라 값을 직접 써넣는 구조), `networks:`를 Mattermost가
+   붙어있는 기존 네트워크 이름으로 바꾼다 (`docker network ls`로 확인).
+4. OMV GUI(docker compose 플러그인)에 완성된 `docker-compose.yml` 내용을 그대로
+   붙여넣고 up — 별도 `.env` 파일 업로드 불필요.
 
 ## 로컬 개발
 

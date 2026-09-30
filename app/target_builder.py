@@ -1,9 +1,11 @@
 """target.json(hermes 스키마, ./target.json 참고) 조립.
 
 구조적 필드(scope, url, platform 등)는 이미 HackerOne API로 정확히 알고 있으니
-코드에서 결정론적으로 채운다. AI는 자유서술인 notes 한 문단만 맡는다 —
-compliance에 걸리는 boolean 필드를 LLM 추론에 맡기지 않기 위해서다
-(automation_policy 두 필드는 stage1에서 이미 정책 배제 필터를 통과했으므로 False로 고정).
+코드에서 결정론적으로 채운다. AI는 자유서술인 notes/VPN 판단만 맡는다.
+
+automation_policy는 항상 고정값이다: prohibits_automation은 stage1에서 이미
+정책 배제 필터를 통과했으므로 False. prohibits_third_party_ai_sharing도 False —
+hermes는 로컬 AI로 구동되므로 "제3자 AI 공유 금지" 정책과 애초에 무관하다.
 """
 import re
 

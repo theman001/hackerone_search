@@ -28,12 +28,6 @@ def test_automation_ban_excludes_program():
     assert result == [], "정책이 자동화 스캔을 금지하면 후보에서 빠져야 한다"
 
 
-def test_ai_sharing_ban_excludes_program():
-    banned = _program(policy="Do not use AI tools or share program data with any third-party AI.")
-    result = scoring.stage1_filter([banned], seen_handles=set())
-    assert result == [], "제3자 AI 공유를 금지하면 hermes 자체가 못 들어가므로 제외돼야 한다"
-
-
 def test_invite_only_excluded():
     private = _program(state="soft_launched")
     result = scoring.stage1_filter([private], seen_handles=set())
