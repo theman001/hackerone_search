@@ -1,6 +1,6 @@
 services:
   hunt-bot:
-    image: ghcr.io/OWNER/REPO:latest   # ← GitHub repo 만든 뒤 실제 owner/repo로 바꿀 것
+    image: ghcr.io/theman001/hackerone_search:latest
     restart: unless-stopped
     env_file:
       - .env
