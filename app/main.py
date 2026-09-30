@@ -65,7 +65,12 @@ def _run_discovery() -> tuple[list[dict], str]:
 
 async def run_discovery_and_post(channel_id: str, user_id: str) -> None:
     loop = asyncio.get_running_loop()
-    candidates, message = await loop.run_in_executor(None, _run_discovery)
+    try:
+        candidates, message = await loop.run_in_executor(None, _run_discovery)
+    except Exception as e:
+        logger.exception("프로그램 탐색 실패")
+        bot.post_root(channel_id, f"⚠️ 탐색 중 오류가 발생했습니다: `{e}` (컨테이너 로그 확인 필요)")
+        return
     root_id = bot.post_root(channel_id, message)
     if candidates:
         db.create_session(root_id, channel_id, user_id, candidates)
