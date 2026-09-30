@@ -20,7 +20,7 @@ async def startup() -> None:
     global bot
     db.init_db()
     bot = MattermostBot()
-    asyncio.create_task(bot.start_listener(handle_thread_reply))
+    bot.start_listener(handle_thread_reply)  # 내부에서 전용 스레드를 띄우고 바로 리턴함
     logger.info("Mattermost bot ready, listening for thread replies")
 
 
