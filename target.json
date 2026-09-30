@@ -1,0 +1,34 @@
+{
+  "project_id": string,             // 필수. 파일명과 정확히 일치해야 함(예: "example-corp-2026-09").
+                                    // 한번 정하면 이후 모든 journal 경로에 이 문자열 그대로 사용됨 —
+                                    // 축약/변경 금지.
+  "category": "web",               // 현재 코드가 "web"만 읽음. 다른 값 넣어도 무시됨(아직 미구현).
+  "mode": "bug_bounty" | "own_system",
+
+  "target": {
+    "program_name": string,        // 프로그램/회사명 또는 대상 설명
+    "platform": "hackerone" | "bugcrowd" | "yeswehack" | "intigriti" | "none",
+    "scope": {
+      "in_scope_domains": string[],      // 와일드카드(*.example.com) 허용
+      "out_of_scope_domains": string[]
+    },
+    "rules_url": string,           // 정책 페이지 URL (없으면 "")
+    "reward_table_url": string,    // 보상 테이블 URL (없으면 "")
+    "automation_policy": {
+      "prohibits_automation": boolean,             // true면 자동화 스캔 금지
+      "prohibits_third_party_ai_sharing": boolean, // true면 DeepSeek/Jev 등 클라우드 API 사용 불가
+      "notes": string                              // 판단 근거가 된 원문 인용
+    },
+    "vpn": {
+      "required": boolean,
+      "profile_name": string | null
+    }
+  },
+
+  "max_rounds_per_phase": number,  // phase당 라운드 상한. 기본 권장 20
+  "status": "active" | "paused" | "done"   // active=진행중, paused=중단(재개 가능), done=완전 종료
+
+  // 선택 필드(관례상 자주 씀, 코드가 안 읽음 — 사람이 읽는 메모용):
+  "_comment": string,         // 이 파일을 어떤 근거로 채웠는지
+  "_status_note": string      // phase 종료 시 A/사람이 남기는 결과 요약
+}

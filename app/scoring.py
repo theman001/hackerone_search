@@ -1,0 +1,115 @@
+"""프로그램 점수화. docs/strategy.md 3절과 1:1로 대응.
+
+2단계 깔때기로 API 호출을 아낀다:
+  1단계(cheap): 프로그램 목록 응답 필드만으로 필터링 + 1차 점수 (추가 API 호출 없음)
+  2단계(refine): 살아남은 후보만 structured_scopes/hacktivity를 추가 조회해 최종 순위
+"""
+import time
+
+# 정책에 이 문구가 있으면 자동화 스캔 금지 → 무조건 제외 (협상 대상 아님)
+AUTOMATION_BANLIST = [
+    "no automated scan",
+    "no automated tool",
+    "not allowed to use automated",
+    "automated scanning is not allowed",
+    "automated scanners are not allowed",
+    "manual testing only",
+    "prohibit the use of automat",
+    "scanners are prohibited",
+    "no vulnerability scanners",
+]
+
+# 정책에 이 문구가 있으면 "제3자 AI에 프로그램 정보 공유 금지" → hermes 자체가 제3자 AI이므로
+# 이 프로그램에는 애초에 참여 불가. target.json의 automation_policy.prohibits_third_party_ai_sharing과
+# 같은 판단 기준이며, 여기서 걸러진 프로그램은 그 필드가 True일 일이 없으므로 코드에서 바로 False로 못박는다.
+AI_SHARING_BANLIST = [
+    "third-party ai",
+    "third party ai",
+    "artificial intelligence tool",
+    "large language model",
+    "do not use ai",
+    "must not use ai",
+    "ai tools are not permitted",
+    "no ai tools",
+    "chatgpt",
+    "llm-based",
+]
+
+# 자동화 recon이 통하는 asset 종류만 넓은 scope로 취급
+WEB_ASSET_TYPES = {"URL", "WILDCARD", "API", "CIDR"}
+
+STAGE1_KEEP = 20  # 2단계로 넘길 후보 수 (API 호출 비용 상한)
+
+
+def _policy_blocks_agent(policy: str | None) -> bool:
+    if not policy:
+        return False
+    text = policy.lower()
+    return any(term in text for term in AUTOMATION_BANLIST) or any(term in text for term in AI_SHARING_BANLIST)
+
+
+def _age_score(started_accepting_at: str | None) -> float:
+    if not started_accepting_at:
+        return 0.5  # 정보 없으면 중립
+    try:
+        started = time.mktime(time.strptime(started_accepting_at[:19], "%Y-%m-%dT%H:%M:%S"))
+    except ValueError:
+        return 0.5
+    age_days = (time.time() - started) / 86400
+    if age_days < 0:
+        return 0.5
+    # 최근일수록 높은 점수, 180일 지나면 0에 수렴
+    return max(0.0, 1.0 - age_days / 180)
+
+
+def stage1_filter(programs: list[dict], seen_handles: set[str]) -> list[dict]:
+    """API 추가 호출 없이 걸러낸다. 살아남은 것에 cheap_score를 붙여 정렬."""
+    kept = []
+    for p in programs:
+        if not p.get("offers_bounties"):
+            continue
+        if p.get("submission_state") != "open":
+            continue
+        if p.get("state") not in (None, "public_mode"):
+            continue  # 초대제 등 에이전트가 스스로 못 들어가는 프로그램
+        if _policy_blocks_agent(p.get("policy")):
+            continue
+        if p["handle"] in seen_handles:
+            continue  # 이미 이전에 추천/승인/스킵한 프로그램
+        score = _age_score(p.get("started_accepting_at"))
+        if p.get("fast_payments"):
+            score += 0.2
+        p["_cheap_score"] = score
+        kept.append(p)
+    kept.sort(key=lambda p: p["_cheap_score"], reverse=True)
+    return kept[:STAGE1_KEEP]
+
+
+def refine_score(program: dict, scopes: list[dict], disclosed_count: int) -> float:
+    web_scopes = [s for s in scopes if s.get("asset_type") in WEB_ASSET_TYPES and s.get("eligible_for_submission")]
+    if not web_scopes:
+        return -1.0  # 자동화가 못 건드리는 scope뿐이면 탈락시킨다
+    web_ratio = len(web_scopes) / max(len(scopes), 1)
+    breadth = min(len(web_scopes), 20) / 20  # 20개 넘어가면 체감
+    competition_penalty = min(disclosed_count, 50) / 50  # 공개 리포트 많을수록 감점
+
+    score = program["_cheap_score"]
+    score += web_ratio * 1.0
+    score += breadth * 0.5
+    score -= competition_penalty * 0.5
+    return score
+
+
+def format_candidate(program: dict, scopes: list[dict], score: float) -> dict:
+    web_scopes = [s for s in scopes if s.get("asset_type") in WEB_ASSET_TYPES and s.get("eligible_for_submission")]
+    return {
+        "handle": program["handle"],
+        "name": program.get("name") or program["handle"],
+        "url": f"https://hackerone.com/{program['handle']}",
+        "policy": program.get("policy") or "",
+        "started_accepting_at": program.get("started_accepting_at"),
+        "fast_payments": bool(program.get("fast_payments")),
+        "score": round(score, 3),
+        "scopes": scopes,
+        "web_asset_count": len(web_scopes),
+    }

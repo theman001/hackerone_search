@@ -1,0 +1,30 @@
+{
+  "_comment": "예시 파일 — 실제 엔게이지먼트 시작 시 project_id로 파일명 짓고 이 옆에 둘 것. 스키마 근거: etc/레드블루-에이전트-실행가능성-검토.md '타겟 입력은 파일로' 절",
+  "_status_values": "active(지금 phase가 실제로 도는 중) | paused(project는 안 끝났지만 지금 도는 phase 없음, 다음 phase 대기) | done(project 종료, Claude Code로 핸드오프됨) — 원래 스키마 값 그대로(2026-09-22 6차 재검토: 'concluded'라는 새 값을 임의로 만들었던 걸 원안으로 되돌림). 'phase 종료 != project 종료' 결정에 따라 phase_start.py/services/handoff/assemble_handoff.py의 request-decision 응답이 이 값을 갱신",
+  "_category_note": "아직 코드에서 안 읽음(2026-09-23 재검토로 발견) — project_dir() 호출부 전부(phase_start.py/assemble_handoff.py/round_watchdog.py)가 이 값을 안 넘기고 harness_paths.project_dir()의 기본값 'web'만 씀. 지금은 프로젝트 전체가 web 전용이라 실질적 차이는 없지만, 'app'/'other' 카테고리를 실제로 쓰게 되면 이 필드를 읽어서 project_dir(project_id, category=...)에 넘기도록 각 호출부를 먼저 고쳐야 함 — 지금 값만 바꾼다고 journal 저장 위치가 안 바뀜.",
+  "project_id": "example-corp-2026-09",
+  "category": "web",
+  "mode": "bug_bounty",
+  "target": {
+    "program_name": "Example Corp Bug Bounty",
+    "platform": "hackerone",
+    "scope": {
+      "in_scope_domains": ["*.example.com", "api.example.com"],
+      "out_of_scope_domains": ["blog.example.com", "status.example.com"]
+    },
+    "rules_url": "https://hackerone.com/example/policy",
+    "reward_table_url": "https://hackerone.com/example",
+    "automation_policy": {
+      "prohibits_automation": false,
+      "prohibits_third_party_ai_sharing": false,
+      "notes": ""
+    },
+    "vpn": {
+      "required": false,
+      "profile_name": null
+    }
+  },
+  "max_rounds_per_phase": 30,
+  "status": "active"
+}
+

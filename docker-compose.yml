@@ -1,0 +1,17 @@
+services:
+  hunt-bot:
+    image: ghcr.io/OWNER/REPO:latest   # ← GitHub repo 만든 뒤 실제 owner/repo로 바꿀 것
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - hunt-data:/data
+    networks:
+      - mattermost_net   # ← Mattermost가 붙어있는 기존 네트워크 이름으로 바꿀 것
+
+volumes:
+  hunt-data:
+
+networks:
+  mattermost_net:
+    external: true
