@@ -52,6 +52,11 @@ class HackerOneClient:
         return [item["attributes"] for item in body.get("data", [])]
 
     def count_recent_disclosed_reports(self, handle: str) -> int:
-        """공개(disclosed)된 리포트 수만 셀 수 있음 — 전체 제출량의 근사치(경쟁 강도 proxy)."""
-        body = self._get("/hackers/hacktivity", **{"queryString": f"team:{handle}", "page[size]": 100})
+        """공개(disclosed)된 리포트 수만 셀 수 있음 — 전체 제출량의 근사치(경쟁 강도 proxy).
+
+        문서는 Lucene 필터명이 "team"이라고 하는데 실제로는 아무것도 안 걸린다
+        (에러도 없이 조용히 0건). 실제 동작하는 필드는 team_handle이다 —
+        gitlab(공개 리포트 많기로 유명)로 직접 검증: team: → 0건, team_handle: → 50건.
+        """
+        body = self._get("/hackers/hacktivity", **{"queryString": f"team_handle:{handle}", "page[size]": 100})
         return len(body.get("data", []))
