@@ -59,8 +59,10 @@ Hacktivity에 리포트가 적은 곳이다. 여기서는 "잘 알려진 취약�
 
 1. Mattermost `/hunt` → 채널에 새 스레드(루트 포스트) 생성, 점수 상위 후보 목록 게시
 2. 담당자가 그 스레드에 번호로 답장 → 단건 승인
-3. 승인된 프로그램의 scope/정책을 AI에 전달 → `target.json` 생성 → 같은 스레드에
-   `[도메인].json` 파일로 업로드
+3. 승인된 프로그램의 HackerOne API 원본 정보(정책 본문·scope·바운티 정보·URL)를
+   가공 없이 JSON으로 묶어 → 같은 스레드에 `[도메인].json` 파일로 업로드
+   (AI 호출 없음 — 이 파일 자체가 target.json은 아니고, 사람이 target.json을
+   작성할 때 참고할 원본 자료다)
 4. 승인/스킵 이력은 SQLite에 남겨 같은 프로그램을 반복 추천하지 않음
 
 모든 상호작용은 1번이 만든 스레드 안에서만 일어난다 (번호 답장, 파일 전달 포함).
@@ -75,7 +77,9 @@ Hacktivity에 리포트가 적은 곳이다. 여기서는 "잘 알려진 취약�
    "탐색은 됐는데 참여를 못 하는" 프로그램은 후보로서 의미가 없다.
 2. **정책 자동화-금지 키워드 필터는 추가 API 호출 없이 1단계에서 바로 적용된다.**
    `policy` 텍스트가 프로그램 목록 응답에 이미 포함돼 있어서다. 반면 scope 구성
-   (웹/API 비중)과 공개 리포트 수(경쟁 강도 proxy, `GET /hackers/hacktivity?queryString=team:<handle>`)는
+   (웹/API 비중)과 공개 리포트 수(경쟁 강도 proxy, `GET /hackers/hacktivity?queryString=team_handle:<handle>`
+   — 문서는 `team:`이라고 적혀 있지만 실제로는 에러 없이 조용히 0건만 돌려주는
+   깨진 필드다, `team_handle:`이 진짜 동작하는 필드)는
    프로그램당 API 호출이 추가로 드니, **상위 20개(cheap score 기준)만 2차로 정밀
    조회**하는 깔때기 구조로 짰다 (`app/scoring.py` STAGE1_KEEP). 공개 프로그램이
    많아도 분당 요청 한도(600/min) 안에서 끝난다.

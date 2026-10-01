@@ -1,15 +1,18 @@
 # hackerone_search
 
 HackerOne Hacker API로 "AI 에이전트(hermes)가 이길 수 있는" 신생/저경쟁 버그바운티
-프로그램을 탐색하고, Mattermost 스레드에서 승인 → AI가 `target.json` 생성까지
-이어지는 봇. 전략 배경은 [docs/strategy.md](docs/strategy.md) 참고.
+프로그램을 탐색하고, Mattermost 스레드에서 승인 → 그 프로그램의 HackerOne API
+원본 정보(정책·scope·바운티 정보·URL)를 그대로 JSON으로 묶어 전달하는 봇.
+AI 호출은 없다 — 전략 배경은 [docs/strategy.md](docs/strategy.md) 참고.
 
 ## 동작 흐름
 
 1. Mattermost에서 `/hunt` 입력 → 봇이 채널에 새 루트 포스트로 후보 프로그램 목록(최대 5개) 게시
 2. **그 스레드에** 번호로 답장(`1`, `2`, ...) → 단건 승인. `skip`이면 취소
-3. 봇이 승인된 프로그램의 scope/정책을 AI에 전달 → `target.json` 생성 → 같은 스레드에
-   `<도메인>.json` 파일로 업로드
+3. 봇이 승인된 프로그램의 HackerOne API 정보(정책 본문 전체·scope·바운티
+   정보·URL)를 가공 없이 JSON으로 묶어 같은 스레드에 `<도메인>.json` 파일로 업로드
+   — 이 파일 자체가 hermes의 target.json은 아니고, target.json을 작성할 때
+   참고할 원본 자료다
 
 이미 추천/승인/스킵된 프로그램은 SQLite에 기록되어 다음 `/hunt`에서 다시 안 나온다.
 
@@ -25,14 +28,11 @@ HackerOne Hacker API로 "AI 에이전트(hermes)가 이길 수 있는" 신생/�
      - 요청 URL: `http://hunt-bot:8000/slash/hunt` (같은 docker 네트워크 기준)
      - 요청 방식: POST
      - 생성된 토큰을 `.env`의 `MM_SLASH_TOKEN`에 (없으면 검증을 생략하니 꼭 넣을 것)
-3. **AI API 키** — OpenAI 호환 엔드포인트 아무거나. `AI_BASE_URL`을 비우면 OpenAI 공식
-   엔드포인트를 쓴다. 모델은 `AI_MODEL`로 교체 가능, 코드 수정 불필요.
-4. **target.json 스키마** — [target.json](target.json)(필드 설명)과
-   [target_example.json](target_example.json)(예시)이 이미 리포지토리에 있다.
-   구조적 필드(scope, url, platform 등)는 HackerOne API 데이터로 코드가 결정론적으로
-   채우고([app/target_builder.py](app/target_builder.py)), AI는 정책 원문에서만
-   알 수 있는 `vpn.required`와 `notes` 두 개만 판단한다([app/ai_client.py](app/ai_client.py)).
-   스키마가 바뀌면 `target_builder.py`의 `build_target_json`만 고치면 된다.
+3. **(참고용) target.json 스키마** — [target.json](target.json)(필드 설명)과
+   [target_example.json](target_example.json)(예시)은 hermes가 최종적으로 기대하는
+   형식 기록이다. 이 봇은 그 스키마를 직접 채우지 않고, HackerOne API 원본 정보를
+   그대로 담은 JSON을 만들어 넘긴다([app/target_builder.py](app/target_builder.py)) —
+   target.json은 그걸 보고 사람이/다른 프로세스가 따로 작성한다.
 
 ## 배포 (Radxa Rock 5 / OMV, docker compose)
 

@@ -1,15 +1,17 @@
-"""target.json(hermes 스키마, ./target.json 참고) 조립.
+"""승인된 프로그램의 HackerOne API 원본 정보를 그대로 JSON으로 묶는다. AI 호출 없음.
 
-구조적 필드(scope, url, platform 등)는 이미 HackerOne API로 정확히 알고 있으니
-코드에서 결정론적으로 채운다. AI는 자유서술인 notes/VPN 판단만 맡는다.
-
-automation_policy는 항상 고정값이다: prohibits_automation은 stage1에서 이미
-정책 배제 필터를 통과했으므로 False. prohibits_third_party_ai_sharing도 False —
-hermes는 로컬 AI로 구동되므로 "제3자 AI 공유 금지" 정책과 애초에 무관하다.
+여기서 만드는 파일은 hermes의 target.json 그 자체가 아니라, 사람(또는 다른 프로세스)이
+target.json을 작성할 때 참고할 원본 자료다 — 그래서 스키마를 어설프게 맞추려 하지 않고,
+API에서 가져온 내용을 가공 없이 담는다. 본문(정책)은 길어도 자르지 않는다.
 """
 import re
 
 from .scoring import WEB_ASSET_TYPES
+
+# ponytail: 우리가 직접 자르는 로직이 없어서 지금은 항상 False.
+# 나중에 어딘가(업로드 한도 등)에서 실제로 잘라야 하는 상황이 생기면
+# 그 지점에서 이 값을 True로 세팅하는 로직을 넣을 것.
+POLICY_TRUNCATED = False
 
 
 def _domains_by_eligibility(scopes: list[dict], eligible: bool) -> list[str]:
@@ -32,36 +34,21 @@ def primary_domain(candidate: dict) -> str:
     return domain or candidate["handle"]
 
 
-def build_target_json(candidate: dict, scope_exclusion_categories: list[str], ai_analysis: dict) -> dict:
-    domain = primary_domain(candidate)
-    vpn_required = bool(ai_analysis.get("vpn_required"))
-    notes_parts = [n.strip() for n in [ai_analysis.get("notes", "")] if n.strip()]
-    if scope_exclusion_categories:
-        notes_parts.append("제외 카테고리(scope_exclusions): " + ", ".join(scope_exclusion_categories))
-    if vpn_required:
-        notes_parts.append("VPN 필요 — profile_name은 수동 지정 필요")
-
+def build_target_json(candidate: dict, scope_exclusions: list[dict]) -> dict:
     return {
-        "project_id": domain,
-        "category": "web",
-        "mode": "bug_bounty",
-        "target": {
-            "program_name": candidate["name"],
-            "platform": "hackerone",
-            "scope": {
-                "in_scope_domains": _domains_by_eligibility(candidate["scopes"], eligible=True),
-                "out_of_scope_domains": _domains_by_eligibility(candidate["scopes"], eligible=False),
-            },
-            "rules_url": candidate["url"],
-            "reward_table_url": candidate["url"],
-            "automation_policy": {
-                "prohibits_automation": False,
-                "prohibits_third_party_ai_sharing": False,
-                "notes": " / ".join(notes_parts),
-            },
-            "vpn": {"required": vpn_required, "profile_name": None},
+        "handle": candidate["handle"],
+        "name": candidate["name"],
+        "hackerone_url": candidate["url"],
+        "bounty_info": {
+            "offers_bounties": candidate.get("offers_bounties"),
+            "fast_payments": candidate.get("fast_payments"),
+            "currency": candidate.get("currency"),
+            "gold_standard_safe_harbor": candidate.get("gold_standard_safe_harbor"),
         },
-        "max_rounds_per_phase": 20,
-        "status": "active",
-        "_comment": f"hunt-bot 자동 생성 (score={candidate['score']}) · 승인: {candidate['handle']}",
+        "policy": candidate["policy"],
+        "policy_truncated": POLICY_TRUNCATED,
+        "scope": {
+            "structured_scopes": candidate["scopes"],
+            "scope_exclusions": scope_exclusions,
+        },
     }

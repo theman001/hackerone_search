@@ -5,7 +5,7 @@ import logging
 
 from fastapi import FastAPI, Form, HTTPException
 
-from . import ai_client, config, db, hackerone, scoring, target_builder
+from . import config, db, hackerone, scoring, target_builder
 from .mattermost_bot import MattermostBot
 
 logging.basicConfig(level=logging.INFO)
@@ -122,7 +122,7 @@ async def handle_thread_reply(post: dict) -> None:
 
     chosen = candidates[idx]
     db.close_session(root_id, "done", chosen["handle"])
-    bot.reply(channel_id, root_id, f"✅ **{chosen['name']}** 승인. target.json 생성 중...")
+    bot.reply(channel_id, root_id, f"✅ **{chosen['name']}** 승인. 정보 조회 중...")
 
     loop = asyncio.get_running_loop()
 
@@ -132,17 +132,15 @@ async def handle_thread_reply(post: dict) -> None:
             exclusions = client.get_scope_exclusions(chosen["handle"])
         except Exception:
             exclusions = []  # 부가 정보라 실패해도 진행
-        categories = [e["category"] for e in exclusions if e.get("category")]
-        analysis = ai_client.analyze_policy(chosen)  # 실패해도 기본값 반환(예외 없음)
-        return target_builder.build_target_json(chosen, categories, analysis)
+        return target_builder.build_target_json(chosen, exclusions)
 
     try:
         target = await loop.run_in_executor(None, _build)
     except Exception as e:
-        logger.exception("target.json 생성 실패")
-        bot.reply(channel_id, root_id, f"⚠️ target.json 생성 중 오류: {e}")
+        logger.exception("프로그램 정보 JSON 생성 실패")
+        bot.reply(channel_id, root_id, f"⚠️ JSON 생성 중 오류: {e}")
         return
 
-    filename = f"{target['project_id']}.json"
+    filename = f"{target_builder.primary_domain(chosen)}.json"
     content = json.dumps(target, ensure_ascii=False, indent=2).encode("utf-8")
     bot.upload_and_reply(channel_id, root_id, filename, content, f"`{filename}` 생성 완료")
