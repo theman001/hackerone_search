@@ -24,6 +24,13 @@ WEB_ASSET_TYPES = {"URL", "WILDCARD", "API", "CIDR"}
 
 STAGE1_KEEP = 20  # 2단계로 넘길 후보 수 (API 호출 비용 상한)
 
+# scope 넓은 성숙한 프로그램이 "오래됐어도 scope 보너스로 이김" 문제 대응:
+# 2년 넘었는데 공개 리포트도 적지 않게 쌓였으면(이미 많이 훑였다는 뜻) 통째로 제외한다.
+AGE_HARD_LIMIT_DAYS = 730
+LOW_COMPETITION_THRESHOLD = 10
+
+COMPETITION_WEIGHT = 1.0  # 기존 0.5 → scope 보너스(최대 1.5)에 안 밀리게 올림
+
 
 def _policy_bans_automation(policy: str | None) -> bool:
     if not policy:
@@ -32,16 +39,21 @@ def _policy_bans_automation(policy: str | None) -> bool:
     return any(term in text for term in AUTOMATION_BANLIST)
 
 
-def _age_score(started_accepting_at: str | None) -> float:
+def _age_days(started_accepting_at: str | None) -> float | None:
     if not started_accepting_at:
-        return 0.5  # 정보 없으면 중립
+        return None
     try:
         started = time.mktime(time.strptime(started_accepting_at[:19], "%Y-%m-%dT%H:%M:%S"))
     except ValueError:
-        return 0.5
+        return None
     age_days = (time.time() - started) / 86400
-    if age_days < 0:
-        return 0.5
+    return age_days if age_days >= 0 else None
+
+
+def _age_score(started_accepting_at: str | None) -> float:
+    age_days = _age_days(started_accepting_at)
+    if age_days is None:
+        return 0.5  # 정보 없으면 중립
     # 최근일수록 높은 점수, 180일 지나면 0에 수렴
     return max(0.0, 1.0 - age_days / 180)
 
@@ -73,6 +85,11 @@ def refine_score(program: dict, scopes: list[dict], disclosed_count: int) -> flo
     web_scopes = [s for s in scopes if s.get("asset_type") in WEB_ASSET_TYPES and s.get("eligible_for_submission")]
     if not web_scopes:
         return -1.0  # 자동화가 못 건드리는 scope뿐이면 탈락시킨다
+
+    age_days = _age_days(program.get("started_accepting_at"))
+    if age_days is not None and age_days > AGE_HARD_LIMIT_DAYS and disclosed_count > LOW_COMPETITION_THRESHOLD:
+        return -1.0  # 오래됐고 이미 많이 훑였으면 scope가 넓어도 통째로 제외
+
     web_ratio = len(web_scopes) / max(len(scopes), 1)
     breadth = min(len(web_scopes), 20) / 20  # 20개 넘어가면 체감
     competition_penalty = min(disclosed_count, 50) / 50  # 공개 리포트 많을수록 감점
@@ -80,7 +97,7 @@ def refine_score(program: dict, scopes: list[dict], disclosed_count: int) -> flo
     score = program["_cheap_score"]
     score += web_ratio * 1.0
     score += breadth * 0.5
-    score -= competition_penalty * 0.5
+    score -= competition_penalty * COMPETITION_WEIGHT
     return score
 
 

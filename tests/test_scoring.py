@@ -1,10 +1,15 @@
 """점수화 로직 자가 점검. pytest 없이 `python tests/test_scoring.py`로 바로 실행."""
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app import scoring
+
+
+def _iso_days_ago(days: int) -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(time.time() - days * 86400))
 
 
 def _program(**overrides):
@@ -67,6 +72,22 @@ def test_refine_score_rewards_web_scope_and_penalizes_competition():
     low_competition = scoring.refine_score(p, web_scopes, disclosed_count=0)
     high_competition = scoring.refine_score(p, web_scopes, disclosed_count=50)
     assert low_competition > high_competition, "공개 리포트가 많을수록(경쟁 심할수록) 점수가 낮아야 한다"
+
+
+def test_old_and_heavily_disclosed_excluded_even_with_wide_scope():
+    old_popular = _program(started_accepting_at=_iso_days_ago(1000))  # 2년(730일) 넘음
+    old_popular["_cheap_score"] = 0.5
+    web_scopes = [{"asset_type": "URL", "eligible_for_submission": True}] * 20  # scope 보너스 꽉 채움
+    score = scoring.refine_score(old_popular, web_scopes, disclosed_count=50)
+    assert score < 0, "2년 넘었고 공개 리포트도 많으면 scope가 넓어도 통째로 제외돼야 한다"
+
+
+def test_old_but_quiet_program_not_hard_excluded():
+    old_quiet = _program(started_accepting_at=_iso_days_ago(1000))
+    old_quiet["_cheap_score"] = 0.5
+    web_scopes = [{"asset_type": "URL", "eligible_for_submission": True}] * 5
+    score = scoring.refine_score(old_quiet, web_scopes, disclosed_count=2)
+    assert score >= 0, "오래됐어도 공개 리포트가 적으면(LOW_COMPETITION_THRESHOLD 이하) 하드 제외하면 안 된다"
 
 
 if __name__ == "__main__":
