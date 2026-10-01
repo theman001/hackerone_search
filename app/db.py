@@ -77,6 +77,11 @@ def close_session(root_post_id: str, status: str, chosen_handle: str | None = No
 
 
 def get_seen_handles() -> set[str]:
+    """재추천 금지 대상 — 실제로 '승인'한 것만. 보여주기만 하고 아무 반응 없었던
+    건('suggested') 다음 /hunt에서 다시 나와도 된다, 안 그러면 테스트 몇 번만
+    돌려도 좁은 후보 풀이 금방 바닥난다."""
     with _conn() as conn:
-        rows = conn.execute("SELECT handle FROM seen_programs").fetchall()
+        rows = conn.execute(
+            "SELECT handle FROM seen_programs WHERE last_status = 'approved'"
+        ).fetchall()
         return {r["handle"] for r in rows}
